@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="chart_glfw/chart_glfw.vcxproj" Id="a1146bd4-eebf-4f68-ae70-f1e4661ceb10" />
+</Solution>

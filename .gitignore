@@ -1,0 +1,67 @@
+# =========================
+# Build artifacts
+# =========================
+build/
+bin/
+out/
+dist/
+
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+*.pdb
+*.ilk
+
+# =========================
+# CMake
+# =========================
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+compile_commands.json
+
+# =========================
+# Visual Studio
+# =========================
+.vs/
+*.vcxproj*
+*.sln
+*.user
+*.filters
+*.log
+
+# =========================
+# MinGW / GCC
+# =========================
+*.d
+*.stackdump
+
+# =========================
+# GLFW / OpenGL runtime junk
+# =========================
+*.glslc
+*.spv
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Editor junk
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+chart_glfw/x64/Debug/chart_glfw.exe.recipe
+chart_glfw/x64/
