@@ -1,0 +1,372 @@
+#include "renderer.h"
+
+
+
+// Global scaling variables
+float minPrice = 1e9, maxPrice = -1e9;
+// 1. Updated Shaders to support Scaling and Color
+const char* vertexShaderSource = "#version 330 core\n"
+"layout (location = 0) in vec2 aPos;\n" // Position
+"layout (location = 1) in vec3 aColor;\n" // Color
+"uniform mat4 projection;\n"
+"out vec3 ourColor;\n"
+"void main() {\n"
+"   gl_Position = projection * vec4(aPos, 0.0, 1.0);\n"
+"   ourColor = aColor;\n"
+"}\0";
+
+const char* fragmentShaderSource = "#version 330 core\n"
+"out vec4 FragColor;\n"
+"in vec3 ourColor;\n"
+"void main() {\n"
+"   FragColor = vec4(ourColor, 1.0f);\n"
+"}\n\0";
+
+
+
+
+
+
+
+std::vector<float> Renderer::prepareCandleData(const std::string& filename) {
+    std::ifstream f(filename);
+    if (!f.is_open()) return {};
+    json fullData = json::parse(f);
+    auto& data = fullData["results"];
+
+    std::vector<float> wickData;
+    std::vector<float> bodyData;
+
+    // --- ADD THIS BACK ---
+    minPrice = 1e9; maxPrice = -1e9;
+    for (auto& item : data) {
+        minPrice = (std::min)(minPrice, (float)item["l"]);
+        maxPrice = (std::max)(maxPrice, (float)item["h"]);
+    }
+    // ---------------------
+
+    int i = 0;
+    for (auto& item : data) {
+        float o = item["o"], h = item["h"], l = item["l"], c = item["c"];
+        float x = (float)i;
+        float r = (c >= o) ? 0.0f : 1.0f;
+        float g = (c >= o) ? 1.0f : 0.0f;
+
+        wickData.insert(wickData.end(), { x, h, r, g, 0.0f, x, l, r, g, 0.0f });
+
+        float top = (std::max)(o, c), bot = (std::min)(o, c);
+        float w = 0.3f;
+        bodyData.insert(bodyData.end(), {
+            x - w, bot, r, g, 0.0f,  x + w, bot, r, g, 0.0f,  x + w, top, r, g, 0.0f,
+            x - w, bot, r, g, 0.0f,  x + w, top, r, g, 0.0f,  x - w, top, r, g, 0.0f
+            });
+        i++;
+    }
+
+    std::vector<float> totalData = wickData;
+    totalData.insert(totalData.end(), bodyData.begin(), bodyData.end());
+    return totalData;
+}
+
+unsigned int Renderer::createShaderProgram() {
+    unsigned int vertex = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertex);
+
+    unsigned int fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragment);
+
+    unsigned int program = glCreateProgram();
+    glAttachShader(program, vertex);
+    glAttachShader(program, fragment);
+    glLinkProgram(program);
+
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
+    return program;
+}
+
+
+void Renderer::createChartFramebuffer(ChartView& chart, int w, int h)
+{
+    chart.width = w;
+    chart.height = h;
+
+    // Color texture
+    glGenTextures(1, &chart.colorTex);
+    glBindTexture(GL_TEXTURE_2D, chart.colorTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // FBO
+    glGenFramebuffers(1, &chart.fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, chart.fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, chart.colorTex, 0);
+
+    // Depth/stencil buffer (optional for 3D)
+    GLuint rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+std::pair<GLuint, int>  Renderer::initCandleData(std::string jsonFile) {
+    std::vector<float> candleVertices = this->prepareCandleData(jsonFile);
+    int candleCount = candleVertices.size() / (5 * 8); // 8 vertices per candle (2 wick + 6 body)
+
+    // Setup VAO/VBO
+    GLuint VAO, VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, candleVertices.size() * sizeof(float), candleVertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    int numCandles = candleVertices.size() / ((2 + 6) * 5); // 8 vertices total per candle
+
+    return { VAO, candleCount };
+
+}
+
+void Renderer::renderChartToFBO(ChartView& chart, GLuint shaderProgram, GLuint VAO, int numCandles)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, chart.fbo);
+    glViewport(0, 0, chart.width, chart.height);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    glUseProgram(shaderProgram);
+    glBindVertexArray(VAO);
+
+    int wickVertexCount = numCandles * 2;
+    int bodyVertexCount = numCandles * 6;
+
+    // lastCandleIndex should be the index of your newest data point
+    float rightEdge = (float)numCandles;
+    float leftEdge = rightEdge - zoomLevel;
+
+    // Projection: [Left, Right, Bottom, Top]
+    // Notice how rightEdge is constant, only leftEdge moves!
+    glm::mat4 projection = glm::ortho(leftEdge, rightEdge, minPrice - 2.0f, maxPrice + 2.0f);
+
+    int projLoc = glGetUniformLocation(shaderProgram, "projection");
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+
+
+
+
+    // 1. Draw ALL wicks at once
+    glLineWidth(1.0f);
+    glDrawArrays(GL_LINES, 0, wickVertexCount);
+
+    // 2. Draw ALL bodies at once
+    // The 'wickVertexCount' tells OpenGL to start drawing AFTER the wicks in the buffer
+    glDrawArrays(GL_TRIANGLES, wickVertexCount, bodyVertexCount);
+
+
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Done rendering to texture
+
+
+}
+void Renderer::onScroll(double xoffset, double yoffset)
+{
+    zoomLevel -= static_cast<float>(yoffset) * 4.0f;
+
+    if (zoomLevel < minZoom) zoomLevel = minZoom;
+    if (zoomLevel > maxZoom) zoomLevel = maxZoom;
+}
+
+
+void Renderer::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    auto* renderer =
+        static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+
+    if (renderer) {
+        renderer->onScroll(xoffset, yoffset);
+    }
+}
+
+int Renderer::glfw_test()
+{
+
+
+    // Setup Platform/Renderer backends
+    // glfw: initialize and configure
+    // ------------------------------
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+    // glfw window creation
+    // --------------------
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    if (window == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    //GLFWwindow* window = glfwCreateWindow(1280, 800, "Chart", nullptr, nullptr);
+    glfwMakeContextCurrent(window);
+
+    glfwSetWindowUserPointer(window, this);
+    //glfwMaximizeWindow(window);
+
+    //glfwMakeContextCurrent(window);
+    //glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+    glfwSetScrollCallback(window, Renderer::ScrollCallback);
+
+    glfwSwapInterval(1);// Enable V-Sync for smoother rendering
+
+    // glad: load all OpenGL function pointers
+    // ---------------------------------------
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+	GLuint shaderProgram = createShaderProgram();
+
+
+    std::vector<float> candleVertices = prepareCandleData("be_data.json");
+    int candleCount = candleVertices.size() / (5 * 8); // 8 vertices per candle (2 wick + 6 body)
+    auto [VAO, numCandles] = initCandleData("be_data.json");
+
+    // Build Shader (use the same source from previous message)
+    bool show_nvda = true;
+    bool show_aapl = true;
+    ChartView aaplChart;  // contains fbo & colorTex
+
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+
+
+        // --- Start ImGui frame ---
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // --- ImGui UI ---
+        //ImGui::Begin("Controls"); 
+        //ImGui::Text("Use mouse scroll to zoom in/out");
+        //ImGui::End();
+  //      //ImGui::ShowDemoWindow();
+
+        ImGuiViewport* vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(vp->Pos);
+        ImGui::SetNextWindowSize(vp->Size);
+        ImGui::SetNextWindowViewport(vp->ID);
+
+        ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoCollapse;
+
+        ImGui::Begin("RootDock", nullptr, flags);
+        ImGui::DockSpace(ImGui::GetID("DockSpace"));
+        ImGui::End();
+
+        ImGui::Begin("NVDA Chart", &show_aapl);
+        ImGui::Text("Another chart");
+        ImGui::End();
+
+
+        ImGui::Begin("AAPL Chart", &show_aapl);
+
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        if (avail.x > 0 && avail.y > 0)
+        {
+            // Optional: resize FBO if ImGui window resized
+            if ((int)avail.x != aaplChart.width || (int)avail.y != aaplChart.height)
+            {
+                glDeleteTextures(1, &aaplChart.colorTex);
+                glDeleteFramebuffers(1, &aaplChart.fbo);
+                createChartFramebuffer(aaplChart, (int)avail.x, (int)avail.y);
+            }
+
+            renderChartToFBO(aaplChart, shaderProgram, VAO, numCandles);
+
+            // Show FBO texture inside ImGui
+            ImGui::Image((void*)(intptr_t)aaplChart.colorTex, avail, ImVec2(0, 1), ImVec2(1, 0));
+        }
+
+        ImGui::End();
+
+
+
+        ImGui::Render();
+
+
+
+        // --- Render ImGui LAST ---
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        glfwSwapBuffers(window);
+
+    }
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteProgram(shaderProgram);
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwTerminate();
+    return 0;
+}
+
+// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+// ---------------------------------------------------------------------------------------------------------
+void Renderer::processInput(GLFWwindow* window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
+
+// glfw: whenever the window size changed (by OS or user resize) this callback function executes
+// ---------------------------------------------------------------------------------------------
+void Renderer::framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    // make sure the viewport matches the new window dimensions; note that width and 
+    // height will be significantly larger than specified on retina displays.
+    glViewport(0, 0, width, height);
+}
+Renderer::Renderer() {
+}
+
+Renderer::~Renderer() {
+}
+
