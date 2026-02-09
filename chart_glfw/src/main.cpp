@@ -2,32 +2,19 @@
 // This tells the linker to use main() even if we are in Windows Subsystem mode
 #pragma comment(linker, "/entry:mainCRTStartup")
 #endif
-//
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
 
-#define NOMINMAX
-#include <windows.h>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <cpr/cpr.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>  // first
 
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <nlohmann/json.hpp>
-#include <glm/glm.hpp>                  // Core GLM types
-#include <glm/gtc/matrix_transform.hpp> // For glm::ortho
-#include <glm/gtc/type_ptr.hpp>         // For glm::value_ptr
-using json = nlohmann::json;
-
-#include <algorithm>
-#include <vector>
 #include "renderer.h"
+#include "data_api/ikbr/MainClient.h"
+
 
 int main() {
 	//readfile();
 	Renderer renderer;
 	renderer.glfw_test();
+	main1(0, nullptr);
+
 }
+

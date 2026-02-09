@@ -65,3 +65,7 @@ desktop.ini
 *.tmp
 chart_glfw/x64/Debug/chart_glfw.exe.recipe
 chart_glfw/x64/
+third_party/TestCppClient/TestCppC.A2A869EF/x64/Debug/TestCppClientStatic.exe.recipe
+third_party/TestCppClient/TestCppC.A2A869EF/x64/Debug/TestCppClientStatic.pch
+third_party/TestCppClient/TestCppC.A2A869EF/
+x64/
