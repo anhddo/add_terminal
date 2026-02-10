@@ -7,14 +7,17 @@
 #include <windows.h>  // first
 
 #include "renderer.h"
-#include "data_api/ikbr/MainClient.h"
+#include "data_api/ikbr/ibkr.h"
+//#include "data_api/ikbr/MainClientDemo.h"
 
 
 int main() {
 	//readfile();
 	Renderer renderer;
-	renderer.glfw_test();
-	main1(0, nullptr);
+	renderer.draw();
+	//main1(0, nullptr);
+	//IbkrClient client;
+	//client.test();
 
 }
 

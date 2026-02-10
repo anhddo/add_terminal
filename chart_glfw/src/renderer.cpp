@@ -198,7 +198,7 @@ void Renderer::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset
     }
 }
 
-int Renderer::glfw_test()
+int Renderer::draw()
 {
 
 
@@ -275,6 +275,11 @@ int Renderer::glfw_test()
         chart.numCandles = numCandles;
 	}
 
+    char symbolInput[32] = "";
+    bool requestData = false;
+    std::string currentSymbol = "";
+
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -308,6 +313,27 @@ int Renderer::glfw_test()
             CreateChartView(chart);
         }
 
+        ImGui::Begin("Mini Chart");
+
+        ImGui::InputText("Symbol", symbolInput, IM_ARRAYSIZE(symbolInput));
+        if (ImGui::IsItemDeactivatedAfterEdit()) { // Enter pressed
+            requestData = true;
+            currentSymbol = symbolInput;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Load")) {
+            requestData = true;
+            currentSymbol = symbolInput;
+        }
+
+        ImGui::Separator();
+
+        // Chart placeholder
+        ImGui::Text("Symbol: %s", currentSymbol.c_str());
+        ImGui::Text("Chart goes here...");
+
+        ImGui::End();
 
 
 

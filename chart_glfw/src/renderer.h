@@ -51,7 +51,7 @@ public:
     const unsigned int SCR_WIDTH = 2560;
     const unsigned int SCR_HEIGHT = 1280;
 public:
-    int glfw_test();
+    int draw();
     void CreateChartView(ChartView& aaplChart);
     static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
