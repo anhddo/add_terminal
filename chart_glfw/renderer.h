@@ -81,6 +81,7 @@ public:
     void newGUI(DataManager& dataManager);
     void RenderTradingWindows(DataManager& dataManager);
     void RenderAnalysisWindows(DataManager& dataManager);
+    void Portfolio(DataManager& dataManager);
     int draw(class DataManager& dataManager);
     void oldGUI(DataManager& dataManager);
     void CreateChartView(ChartView& aaplChart);

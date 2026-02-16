@@ -545,6 +545,13 @@ void Renderer::TabTest(DataManager& dataManager)
 
 void Renderer::RenderTradingWindows(DataManager& dataManager)
 {
+	// ========== IMPORTANT: How windows dock into tabs ==========
+	// When you call ImGui::Begin() INSIDE a tab's content area (after DockSpace()),
+	// those windows automatically become dockable ONLY within that tab's dockspace.
+	// 
+	// The "##Trading" suffix creates unique IDs, so you can have windows with
+	// the same base name in different tabs without conflicts.
+
 	// Chart Window - display active symbol
 	std::string symbol = dataManager.activeSymbol;
 	if (!symbol.empty() && dataManager.charts.find(symbol) != dataManager.charts.end()) {
@@ -552,14 +559,15 @@ void Renderer::RenderTradingWindows(DataManager& dataManager)
 			m_chartViews[symbol] = createChartFromData(symbol, dataManager.charts[symbol].candles);
 		}
 		if (m_chartViews[symbol].isVisible) {
-			CreateChartView(m_chartViews[symbol]);
+			CreateChartView(m_chartViews[symbol]);  // This window will dock in Trading tab
 		}
 	}
 
 	// Order Entry Window
+	// This window will ONLY be visible and dockable in the Trading tab
 	static int quantity = 100;
 	static char orderSymbol[64] = "";
-	ImGui::Begin("Order Entry##Trading");
+	ImGui::Begin("Order Entry##Trading");  // ##Trading makes ID unique to this tab
 	ImGui::Text("Quick Trade");
 	ImGui::InputText("Symbol", orderSymbol, 64);
 	ImGui::InputInt("Quantity", &quantity);
@@ -569,6 +577,7 @@ void Renderer::RenderTradingWindows(DataManager& dataManager)
 	ImGui::End();
 
 	// Market Depth Window
+	// Another window exclusive to the Trading tab
 	ImGui::Begin("Market Depth##Trading");
 	ImGui::Text("Market depth data will be displayed here");
 	// TODO: Display market depth from dataManager
@@ -576,74 +585,157 @@ void Renderer::RenderTradingWindows(DataManager& dataManager)
 }
 void Renderer::RenderAnalysisWindows(DataManager& dataManager)
 {
-    // Scanner Results
+    // ========== Analysis Tab Windows ==========
+    // These windows are independent from the Trading tab windows
+    // They have their own docking layout within the "AnalysisDockSpace"
+
+    // Scanner Results - shows market scanner data
     ScannerGUI(dataManager.currentScannerResult);
 
     // Technical Indicators Window
-    ImGui::Begin("Technical Indicators##Analysis");
+    ImGui::Begin("Technical Indicators##Analysis");  // ##Analysis for unique ID
     ImGui::Text("Technical analysis tools");
-    // TODO: RSI, MACD, etc.
+    // TODO: RSI, MACD, Bollinger Bands, etc.
     ImGui::End();
 
     // Backtest Results Window
     ImGui::Begin("Backtest Results##Analysis");
     ImGui::Text("Backtest statistics");
-    // TODO: Backtest stats
+    // TODO: Display backtest performance metrics
     ImGui::End();
 
     // Strategy Editor Window
     ImGui::Begin("Strategy Editor##Analysis");
     ImGui::Text("Strategy development");
-    // TODO: Code editor for strategies
+    // TODO: Code editor for creating trading strategies
     ImGui::End();
+
+    // ========== KEY POINT ==========
+    // Even though we're calling ImGui::Begin() just like in RenderTradingWindows(),
+    // these windows will dock into the ANALYSIS tab's dockspace, not the Trading tab!
+    // This is because they're created INSIDE the "Analysis" BeginTabItem() block.
+}
+void Renderer::Portfolio(DataManager& dataManager)
+{
+    // ========== Analysis Tab Windows ==========
+    // These windows are independent from the Trading tab windows
+    // They have their own docking layout within the "AnalysisDockSpace"
+
+    // Scanner Results - shows market scanner data
+
+    // Technical Indicators Window
+    ImGui::Begin("Technical Indicators##Analysis");  // ##Analysis for unique ID
+    ImGui::Text("Technical analysis tools");
+    // TODO: RSI, MACD, Bollinger Bands, etc.
+    ImGui::End();
+
+    
+    // ========== KEY POINT ==========
+    // Even though we're calling ImGui::Begin() just like in RenderTradingWindows(),
+    // these windows will dock into the ANALYSIS tab's dockspace, not the Trading tab!
+    // This is because they're created INSIDE the "Analysis" BeginTabItem() block.
 }
 void Renderer::newGUI(DataManager& dataManager) {
-	// Main window covering entire viewport
+	// ========== STEP 1: Create a fullscreen "host" window ==========
+	// This window will contain our tab bar and dockspaces.
+	// Think of this as the main Excel window frame.
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->Pos);
-	ImGui::SetNextWindowSize(viewport->Size);
-	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(viewport->Pos);        // Position at top-left of screen
+	ImGui::SetNextWindowSize(viewport->Size);      // Fill entire screen
+	ImGui::SetNextWindowViewport(viewport->ID);    // Attach to main viewport
 
+	// Window flags to make it behave like a background container:
+	// - NoDocking: Prevents THIS window from being docked (it's the host!)
+	// - NoTitleBar/NoCollapse/NoResize/NoMove: Makes it look like part of the app, not a floating window
+	// - NoBringToFrontOnFocus/NoNavFocus: Keeps it in the background
 	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
 									ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
 									ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
 									ImGuiWindowFlags_NoNavFocus;
 
+	// Remove padding so content fills entire window
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	ImGui::Begin("MainDockSpaceWindow", nullptr, window_flags);
 	ImGui::PopStyleVar();
 
-	// Excel-like sheet tabs
+	// ========== STEP 2: Create Excel-like sheet tabs ==========
+	// TabBar creates the horizontal tab strip (like Excel sheet tabs at bottom)
+	// Reorderable: Users can drag tabs to reorder them
+	// AutoSelectNewTabs: New tabs are automatically selected when created
 	if (ImGui::BeginTabBar("WorkbookTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_AutoSelectNewTabs))
 	{
+		// ========== STEP 3: Create individual sheet tabs ==========
+		// Each BeginTabItem() creates one clickable tab
+		// When a tab is selected, the code inside its block runs
+
 		// Sheet 1: Trading View
 		if (ImGui::BeginTabItem("Trading"))
 		{
-			ImGuiID dockspace_id = ImGui::GetID("TradingDockSpace");
+			// ========== STEP 4: Create a unique DockSpace for this tab ==========
+			// KEY CONCEPT: Each tab needs its OWN dockspace with a UNIQUE ID
+			// This is what allows independent docking layouts per sheet!
+			// 
+			// Without unique IDs, all tabs would share the same dock layout,
+			// and moving a window in one tab would affect all other tabs.
+			ImGuiID dockspace_id = ImGui::GetID("TradingDockSpace");  // Unique ID for this sheet
+
+			// DockSpace creates an invisible docking area that fills available space
+			// ImVec2(0,0) means "use all available space in this tab"
 			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+
+			// ========== STEP 5: Render windows for this sheet ==========
+			// Any ImGui::Begin() windows created here will:
+			// 1. Be dockable within THIS tab's dockspace
+			// 2. Persist their position when switching between tabs
+			// 3. NOT appear in other tabs' dockspaces
 			RenderTradingWindows(dataManager);
-			ImGui::EndTabItem();
+
+			ImGui::EndTabItem();  // Close this tab's content area
 		}
 
 		// Sheet 2: Analysis View
 		if (ImGui::BeginTabItem("Analysis"))
 		{
-			ImGuiID dockspace_id = ImGui::GetID("AnalysisDockSpace");
+			// Same structure as Trading tab, but with DIFFERENT dockspace ID
+			// This creates a completely separate docking environment
+			ImGuiID dockspace_id = ImGui::GetID("AnalysisDockSpace");  // Different ID!
 			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
 			RenderAnalysisWindows(dataManager);
 			ImGui::EndTabItem();
 		}
+        if (ImGui::BeginTabItem("Portfolio"))
+        {
+            // Same structure as Trading tab, but with DIFFERENT dockspace ID
+            // This creates a completely separate docking environment
+            ImGuiID dockspace_id = ImGui::GetID("PortfolioDockSpace");  // Different ID!
+            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+            RenderAnalysisWindows(dataManager);
+            ImGui::EndTabItem();
+        }
 
-		// Add new sheet button (optional)
+		// ========== STEP 6: Optional "+" button to add new sheets ==========
+		// TabItemButton creates a small button in the tab bar
+		// Trailing: Places it at the end of the tab bar
 		if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip))
 		{
-			// TODO: Add logic to create new sheet
+			// TODO: Add logic to create new sheet dynamically
+			// Would need to store tab names and dockspace IDs in a vector
 		}
 
-		ImGui::EndTabBar();
+		ImGui::EndTabBar();  // Close the tab bar
 	}
 
-	ImGui::End();
+	ImGui::End();  // Close the main host window
+
+	// ========== HOW IT ALL WORKS TOGETHER ==========
+	// 1. Main window provides the container
+	// 2. TabBar creates the tab strip UI
+	// 3. Each BeginTabItem() defines one tab's content area
+	// 4. Each DockSpace (with unique ID) provides independent docking for that tab
+	// 5. Windows created inside RenderXXXWindows() automatically dock to the active tab's dockspace
+	// 6. When you switch tabs, ImGui remembers each dockspace's layout independently
+	//
+	// This mimics Excel's sheet system where each sheet has its own independent workspace!
 }
 
 int Renderer::draw(DataManager& dataManager)
@@ -653,7 +745,8 @@ int Renderer::draw(DataManager& dataManager)
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	newGUI(dataManager);
+	//newGUI(dataManager);
+	ImGui::ShowDemoWindow();
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
