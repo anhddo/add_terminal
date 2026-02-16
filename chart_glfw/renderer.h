@@ -72,6 +72,7 @@ public:
 
     // Callback for symbol input
     std::function<void(const std::string&)> onSymbolEntered;
+    std::function<void(const std::string&)> onScannerRowClicked;
 
 private:
     // TC2000-style global symbol capture

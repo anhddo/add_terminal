@@ -375,6 +375,9 @@ void Renderer::ScannerGUI(const ScannerResult& scanResults)
             // Optional: Handle row click
             if (rowClicked) {
                 printf("Clicked row: %s\n", item.symbol.c_str());
+                if (onScannerRowClicked) {
+                    onScannerRowClicked(item.symbol);
+				}
             }
         }
 
@@ -568,17 +571,6 @@ int Renderer::draw(DataManager& dataManager)
 
 
 
-    //// Only display if visible
-    //if (m_chartViews[symbol].isVisible) {
-    //    CreateChartView(m_chartViews[symbol]);
-    //}
-    //if (m_chartViews.find(dataManager.activeSymbol) == m_chartViews.end()) {
-    //    m_chartViews[dataManager.activeSymbol] = createChartFromData(dataManager.activeSymbol, chartData.candles);
-    //}
-
-
-
-    //TabTest(dataManager);
 
 
 
@@ -624,6 +616,7 @@ void Renderer::CreateChartView(ChartView& chart)
     ImGui::Begin(chart.title, &chart.isVisible);
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
+    
     if (avail.x > 0 && avail.y > 0)
     {
         // Optional: resize FBO if ImGui window resized

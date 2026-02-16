@@ -33,7 +33,24 @@ void App::init(GLFWwindow* window)
 
 	// Wire up symbol input callback
 	m_renderer->onSymbolEntered = [this](const std::string& symbol) {
-		requestChart(symbol);
+		if (dataManager.charts.find(symbol) != dataManager.charts.end()) {
+            dataManager.activeSymbol = symbol;
+            printf("Switched active chart to %s\n", symbol.c_str());
+        } else {
+            printf("No chart data for %s, requesting...\n", symbol.c_str());
+            requestChart(symbol);
+        }
+	};
+
+    m_renderer->onScannerRowClicked = [this](const std::string& symbol) {
+        if (dataManager.charts.find(symbol) != dataManager.charts.end()) {
+            dataManager.activeSymbol = symbol;
+            printf("Switched active chart to %s\n", symbol.c_str());
+        }
+        else {
+            printf("No chart data for %s, requesting...\n", symbol.c_str());
+            requestChart(symbol);
+        }
 	};
 
 }
