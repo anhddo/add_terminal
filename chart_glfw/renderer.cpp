@@ -348,15 +348,16 @@ void Renderer::ScannerGUI(const ScannerResult& scanResults)
         // Display each result
         for (const auto& item : scanResults.items) {
             ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
 
-            if (ImGui::IsItemHovered()) {
-                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
-                    ImGui::GetColorU32(ImVec4(0.3f, 0.3f, 0.4f, 0.5f)));
-            }
-           
-
+            // Invisible selectable spanning all columns for row-level hover/click
             ImGui::TableSetColumnIndex(0);
+            ImGui::PushID(item.rank);  // Unique ID per row
+            bool rowClicked = ImGui::Selectable("##row", false, 
+                ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
+            ImGui::PopID();
+
+            // Render actual content over the selectable
+            ImGui::SameLine();
             ImGui::Text("%d", item.rank);
 
             ImGui::TableSetColumnIndex(1);
@@ -370,6 +371,11 @@ void Renderer::ScannerGUI(const ScannerResult& scanResults)
 
             ImGui::TableSetColumnIndex(4);
             ImGui::Text("%ld", item.conId);
+
+            // Optional: Handle row click
+            if (rowClicked) {
+                printf("Clicked row: %s\n", item.symbol.c_str());
+            }
         }
 
         ImGui::EndTable();
@@ -477,22 +483,8 @@ void Renderer::DrawChartGUI(DataManager& dataManager)
     }
 }
 
-int Renderer::draw(DataManager& dataManager)
+void Renderer::DockSetting()
 {
-    // --- Start ImGui frame ---
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    // *** IMPORTANT: Process overlay ticker FIRST before any other UI ***
-    // This ensures global keyboard capture works regardless of window focus
-    OverlayTickerGUI();
-
-    ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(vp->Pos);
-    ImGui::SetNextWindowSize(vp->Size);
-    ImGui::SetNextWindowViewport(vp->ID);
-
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
@@ -502,18 +494,91 @@ int Renderer::draw(DataManager& dataManager)
     ImGui::Begin("RootDock", nullptr, flags);
     ImGui::DockSpace(ImGui::GetID("DockSpace"));
     ImGui::End();
+}
+
+void Renderer::TabTest(DataManager& dataManager)
+{
+    enum LayoutType { MARKET_OVERVIEW, TRADING_VIEW, PORTFOLIO };
+    static LayoutType currentLayout = MARKET_OVERVIEW;
+
+    // 2. Main Loop
+
+    // --- Main Workspace Area ---
+    ImGui::Begin("MainWorkspace", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
+    if (currentLayout == MARKET_OVERVIEW) {
+        //RenderMarketLayout(); // Your charts/scanners
+        ScannerGUI(dataManager.currentScannerResult);
+    }
+    else if (currentLayout == TRADING_VIEW) {
+        DrawChartGUI(dataManager); // Your charts
+    }
+    ImGui::End();
+
+    // --- The Bottom Tab Bar (TC2000 Style) ---
+    ImGui::Begin("BottomTabs", nullptr, ImGuiWindowFlags_NoTitleBar);
+    if (ImGui::BeginTabBar("LayoutTabs")) {
+        if (ImGui::BeginTabItem("Market")) {
+            currentLayout = MARKET_OVERVIEW;
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Trading")) {
+            currentLayout = TRADING_VIEW;
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+    ImGui::End();
+}
+
+int Renderer::draw(DataManager& dataManager)
+{
+    // --- Start ImGui frame ---
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->Pos);
+    ImGui::SetNextWindowSize(vp->Size);
+    ImGui::SetNextWindowViewport(vp->ID);
+    DockSetting();
+
+    // *** IMPORTANT: Process overlay ticker FIRST before any other UI ***
+    // This ensures global keyboard capture works regardless of window focus
+    OverlayTickerGUI();
 
 
-    //ScannerUI();
 
 
-	// Scanner Results Window
+
+	//// Scanner Results Window
 	const auto& scanResults = dataManager.currentScannerResult;
-    ScannerGUI(scanResults);
+	ScannerGUI(scanResults);
 
-    DrawChartGUI(dataManager);
+	//DrawChartGUI(dataManager);
+	std::string symbol = dataManager.activeSymbol;
+	if (dataManager.charts.find(symbol) != dataManager.charts.end()) {
+		// Check if chart exists
+		if (m_chartViews.find(symbol) == m_chartViews.end()) {
+			// Create new chart if it doesn't exist
+			m_chartViews[symbol] = createChartFromData(symbol, dataManager.charts[symbol].candles);
+		} 
+		CreateChartView(m_chartViews[symbol]);
+	}
 
 
+
+    //// Only display if visible
+    //if (m_chartViews[symbol].isVisible) {
+    //    CreateChartView(m_chartViews[symbol]);
+    //}
+    //if (m_chartViews.find(dataManager.activeSymbol) == m_chartViews.end()) {
+    //    m_chartViews[dataManager.activeSymbol] = createChartFromData(dataManager.activeSymbol, chartData.candles);
+    //}
+
+
+
+    //TabTest(dataManager);
 
 
 
@@ -551,6 +616,8 @@ ChartView Renderer::createChartFromData(const std::string& symbol, const std::ve
 
     return newChart;
 }
+
+
 
 void Renderer::CreateChartView(ChartView& chart)
 {

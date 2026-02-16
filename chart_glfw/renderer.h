@@ -64,6 +64,8 @@ public:
     void ScannerGUI(const ScannerResult& scanResults);
     void OverlayTickerGUI();
     void DrawChartGUI(DataManager& dataManager);
+    void DockSetting();
+    void TabTest(DataManager& dataManager);
     int draw(class DataManager& dataManager);
     void CreateChartView(ChartView& aaplChart);
     static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);

@@ -9,6 +9,7 @@ struct StartScannerCommand {
     double priceAbove;
 };
 
+
 struct CancelScannerCommand {
     int reqId;
 };
