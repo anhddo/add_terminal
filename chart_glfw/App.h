@@ -32,6 +32,7 @@ public:
 private:
     std::mutex mtx;
     std::vector<ScannerResultItem> m_latestScannerResults;
+    std::thread m_ibThread;
     int m_scannerReqId = 0;
     int m_nextReqId = 2;  // Start from 2 (1 is used by scanner)
     std::unique_ptr<IbkrClient> m_ibClient;

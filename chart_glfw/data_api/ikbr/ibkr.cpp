@@ -260,7 +260,11 @@ void IbkrClient::processCommands() {
 					arg.durationStr, arg.barSizeSetting, arg.whatToShow,
 					arg.useRTH, 1, false, TagValueListSPtr());
 			}
-			}, cmd.data);
+			else if constexpr (std::is_same_v<T, DiscounnectCommand>) {
+				printf("Processing DisconnectCommand\n");
+				m_pClient->eDisconnect();
+			}
+			}, cmd);
 	}
 }
 
@@ -283,13 +287,7 @@ void IbkrClient::processLoop() {
 		printf("Cannot connect to %s:%d clientId:%d\n", m_pClient->host().c_str(), m_pClient->port(), 0);
 
 
-	//std::queue<Command> localQueue;
-	//{
-	//	std::lock_guard<std::mutex> lock(m_commandMutex);
-	//	std::swap(localQueue, m_commandQueue);
-	//}
-
-
+	
 
 	printf("attempt %u of %u\n", attempt, 10);
 	std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -313,24 +311,6 @@ void IbkrClient::stop()
 
 void IbkrClient::start() {
 
-	//historicalDataRequests();
-
-	//getHistoricalTest();
-	
-	//scanTest1();
-
-
-	//int counter = 0;
-	//while (m_pClient->isConnected()) {
-	//	m_osSignal.waitForSignal();
-	//	errno = 0;
-	//	m_pReader->processMsgs();
-	//	printf("Processed %d message cycles\n", ++counter);
-	//}
-
-
-	
-	//std::thread m_thread = std::thread(&IbkrClient::processLoop, this);
 	
 
 

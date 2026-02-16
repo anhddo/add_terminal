@@ -29,6 +29,10 @@ const char* fragmentShaderSource = "#version 330 core\n"
 Renderer::Renderer() {}
 
 Renderer::~Renderer() {
+    for (auto& [symbol, chart] : m_chartViews) {
+        chart.cleanup();
+    }
+    m_chartViews.clear();
 }
 
 unsigned int Renderer::createShaderProgram() {
@@ -181,20 +185,20 @@ void Renderer::createChartFrameBuffer(ChartView& chart, int w, int h)
     glBindFramebuffer(GL_FRAMEBUFFER, chart.fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, chart.colorTex, 0);
 
-    // Depth/stencil buffer (optional for 3D)
-    GLuint rbo;
-    glGenRenderbuffers(1, &rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    //// Depth/stencil buffer (optional for 3D)
+    //GLuint rbo;
+    //glGenRenderbuffers(1, &rbo);
+    //glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    //glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+    //glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 
 // New function: Initialize candle data from pre-prepared vertex vector
-std::pair<GLuint, int> Renderer::initCandleDataFromVector(const std::vector<float>& candleVertices) {
-    if (candleVertices.empty()) return { 0, 0 };
+std::tuple<GLuint, GLuint, int> Renderer::initCandleDataFromVector(const std::vector<float>& candleVertices) {
+    if (candleVertices.empty()) return { 0, 0,0 };
 
     // Setup VAO/VBO
     GLuint VAO, VBO;
@@ -214,7 +218,7 @@ std::pair<GLuint, int> Renderer::initCandleDataFromVector(const std::vector<floa
 
     int numCandles = candleVertices.size() / ((2 + 6) * 5); // 8 vertices total per candle (2 wick + 6 body)
 
-    return { VAO, numCandles };
+    return { VAO, VBO, numCandles };
 }
 
 void Renderer::renderChartToFBO(ChartView& chart, GLuint shaderProgram, GLuint VAO, int numCandles)
@@ -598,8 +602,9 @@ ChartView Renderer::createChartFromData(const std::string& symbol, const std::ve
     newChart.maxPrice = priceRange.second;
 
     // Initialize OpenGL objects
-    auto [vao, numCandles] = initCandleDataFromVector(vertexData);
+    auto [vao, vbo, numCandles] = initCandleDataFromVector(vertexData);
     newChart.vao = vao;
+	newChart.vbo = vbo;
     newChart.numCandles = numCandles;
     newChart.shaderProgram = createShaderProgram();
 
@@ -624,6 +629,7 @@ void Renderer::CreateChartView(ChartView& chart)
         {
             glDeleteTextures(1, &chart.colorTex);
             glDeleteFramebuffers(1, &chart.fbo);
+            // Delete OLD resources including RBO!
             createChartFrameBuffer(chart, (int)avail.x, (int)avail.y);
         }
 

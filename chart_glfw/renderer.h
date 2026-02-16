@@ -37,6 +37,8 @@ struct ChartView {
 	GLuint fbo = 0;
 	GLuint shaderProgram = 0;
 	GLuint vao = 0;
+    GLuint vbo = 0;        
+    GLuint rbo = 0;        
 	GLuint numCandles;
 	GLuint colorTex = 0;
 	int width = 0;
@@ -49,6 +51,16 @@ struct ChartView {
 	float maxPrice = -1e9f;
 
 	bool isVisible = true;
+    void cleanup() {
+        if (vao) glDeleteVertexArrays(1, &vao);
+        if (vbo) glDeleteBuffers(1, &vbo);
+        if (shaderProgram) glDeleteProgram(shaderProgram);
+        if (fbo) glDeleteFramebuffers(1, &fbo);
+        if (rbo) glDeleteRenderbuffers(1, &rbo);
+        if (colorTex) glDeleteTextures(1, &colorTex);
+
+        vao = vbo = shaderProgram = fbo = rbo = colorTex = 0;
+    }
     
 };
 
@@ -100,7 +112,7 @@ private:
     std::vector<float> prepareCandleDataFromJson(const std::string& filename);
     std::pair<std::vector<float>, std::pair<float, float>> prepareCandleDataFromVector(const std::vector<struct CandleData>& candles);
     std::pair<GLuint, int> initCandleDataFromJson(std::string jsonFile);
-    std::pair<GLuint, int> initCandleDataFromVector(const std::vector<float>& candleVertices);
+    std::tuple<GLuint, GLuint, int> initCandleDataFromVector(const std::vector<float>& candleVertices);
     unsigned int createShaderProgram();
 
     void onScroll(double xoffset, double yoffset);

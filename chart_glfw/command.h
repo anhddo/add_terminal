@@ -14,6 +14,10 @@ struct CancelScannerCommand {
     int reqId;
 };
 
+struct DiscounnectCommand {
+    // No parameters needed for now
+};
+
 struct RequestHistoricalDataCommand {
     int reqId;
     std::string symbol;
@@ -24,12 +28,9 @@ struct RequestHistoricalDataCommand {
     int useRTH;                 // 1 = regular trading hours only, 0 = all hours
 };
 
-using CommandData = std::variant<
+using Command = std::variant<
     StartScannerCommand,
     CancelScannerCommand,
-    RequestHistoricalDataCommand
+    RequestHistoricalDataCommand,
+    DiscounnectCommand
 >;
-
-struct Command {
-    CommandData data;
-};

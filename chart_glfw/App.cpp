@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include "renderer.h"
+#include "command.h"
 
 App::App() 
     : m_scannerReqId(0)
@@ -17,10 +18,10 @@ App::~App()
 void App::init(GLFWwindow* window)
 {
     m_ibClient = std::make_unique<IbkrClient>();
-    std::thread ibThread([this]() {
+    m_ibThread = std::thread([this]() {
         m_ibClient->processLoop();
     });
-    ibThread.detach();
+    
     
     std::this_thread::sleep_for(std::chrono::seconds(1));
     startScanner(1, "TOP_PERC_GAIN");
@@ -57,8 +58,19 @@ void App::init(GLFWwindow* window)
 
 void App::stop()
 {
-    if (m_ibClient)
-        m_ibClient->stop();
+    DiscounnectCommand disconnectCmd;
+
+    m_ibClient->pushCommand(disconnectCmd);
+    // 3. Wait for thread to finish
+    if (m_ibThread.joinable()) {
+        printf("Waiting for IB thread to finish...\n");
+        m_ibThread.join();
+        printf("IB thread joined\n");
+    }
+
+    //printf("App::stop() finished\n");
+    //if (m_ibClient)
+    //    m_ibClient->stop();
 }
 
 void App::update()
@@ -75,14 +87,13 @@ void App::update()
 
 void App::startScanner(int reqId, const std::string& scanCode, double priceAbove)
 {
-    StartScannerCommand cmd;
-    cmd.reqId = reqId;
-    cmd.scanCode = scanCode;
-    cmd.locationCode = "STK.US";
-    cmd.priceAbove = priceAbove;
+    StartScannerCommand command;
+    command.reqId = reqId;
+    command.scanCode = scanCode;
+    command.locationCode = "STK.US";
+    command.priceAbove = priceAbove;
 
-    Command command;
-    command.data = cmd;
+    
     m_ibClient->pushCommand(std::move(command));
 
     printf("UI: Scanner command sent (reqId=%d, scanCode=%s)\n", reqId, scanCode.c_str());
@@ -98,9 +109,8 @@ void App::handleEvent(const Event& event)
 
             CancelScannerCommand cancelCmd;
             cancelCmd.reqId = arg.reqId;
-            Command command;
-            command.data = cancelCmd;
-            m_ibClient->pushCommand(std::move(command));
+            
+            m_ibClient->pushCommand(std::move(cancelCmd));
         }
         else if constexpr (std::is_same_v<T, HistoricalDataEvent>) {
             // Store chart data
@@ -129,9 +139,8 @@ void App::requestChart(const std::string& symbol)
     cmd.whatToShow = "TRADES";
     cmd.useRTH = 1;                 // Regular trading hours only
 
-    Command command;
-    command.data = cmd;
-    m_ibClient->pushCommand(std::move(command));
+    
+    m_ibClient->pushCommand(std::move(cmd));
 
     printf("Requesting daily chart for %s (reqId=%d, duration=%s)\n", 
            symbol.c_str(), cmd.reqId, cmd.durationStr.c_str());

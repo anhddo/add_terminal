@@ -58,6 +58,8 @@ int main() {
 
 		glfwSwapBuffers(window);
 	}
+	std::printf("Shutting down application...\n");
+	
 
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
