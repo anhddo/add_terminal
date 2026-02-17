@@ -264,6 +264,18 @@ void IbkrClient::processCommands() {
 				printf("Processing DisconnectCommand\n");
 				m_pClient->eDisconnect();
 			}
+			else if constexpr (std::is_same_v<T, RequestAccountDataCommand>) {
+				printf("Processing RequestAccountDataCommand: accountCode=%s\n",
+					arg.accountCode.c_str());
+
+				if (!arg.accountCode.empty()) {
+					// Request updates for specific account
+					m_pClient->reqAccountUpdates(true, arg.accountCode);
+				} else {
+					// Request positions for all accounts
+					m_pClient->reqPositions();
+				}
+			}
 			}, cmd);
 	}
 }
@@ -2084,6 +2096,17 @@ void IbkrClient::connectionClosed() {
 void IbkrClient::updateAccountValue(const std::string& key, const std::string& val,
 	const std::string& currency, const std::string& accountName) {
 	printf("UpdateAccountValue. Key: %s, Value: %s, Currency: %s, Account Name: %s\n", key.c_str(), val.c_str(), currency.c_str(), accountName.c_str());
+
+	// Push account value update event
+	AccountValueUpdate update;
+	update.key = key;
+	update.value = val;
+	update.currency = currency;
+	update.accountName = accountName;
+
+	AccountSummaryEvent event;
+	event.accountValues[key] = update;
+	pushEvent(Event{ event });
 }
 //! [updateaccountvalue]
 
@@ -2095,6 +2118,22 @@ void IbkrClient::updatePortfolio(const Contract& contract, Decimal position,
 		(contract.symbol).c_str(), (contract.secType).c_str(), (contract.primaryExchange).c_str(), DecimalFunctions::decimalStringToDisplay(position).c_str(),
 		Utils::doubleMaxString(marketPrice).c_str(), Utils::doubleMaxString(marketValue).c_str(), Utils::doubleMaxString(averageCost).c_str(),
 		Utils::doubleMaxString(unrealizedPNL).c_str(), Utils::doubleMaxString(realizedPNL).c_str(), accountName.c_str());
+
+	// Push position update event
+	PositionUpdate posUpdate;
+	posUpdate.account = accountName;
+	posUpdate.symbol = contract.symbol;
+	posUpdate.secType = contract.secType;
+	posUpdate.position = DecimalFunctions::decimalToDouble(position);
+	posUpdate.marketPrice = marketPrice;
+	posUpdate.marketValue = marketValue;
+	posUpdate.averageCost = averageCost;
+	posUpdate.unrealizedPNL = unrealizedPNL;
+	posUpdate.realizedPNL = realizedPNL;
+
+	AccountSummaryEvent event;
+	event.positions.push_back(posUpdate);
+	pushEvent(Event{ event });
 }
 //! [updateportfolio]
 
@@ -2550,6 +2589,22 @@ void IbkrClient::commissionAndFeesReport(const CommissionAndFeesReport& commissi
 //! [position]
 void IbkrClient::position(const std::string& account, const Contract& contract, Decimal position, double avgCost) {
 	printf("Position. %s - Symbol: %s, SecType: %s, Currency: %s, Position: %s, Avg Cost: %s\n", account.c_str(), contract.symbol.c_str(), contract.secType.c_str(), contract.currency.c_str(), DecimalFunctions::decimalStringToDisplay(position).c_str(), Utils::doubleMaxString(avgCost).c_str());
+
+	// Push position event (basic info, detailed info comes from updatePortfolio)
+	PositionUpdate posUpdate;
+	posUpdate.account = account;
+	posUpdate.symbol = contract.symbol;
+	posUpdate.secType = contract.secType;
+	posUpdate.position = DecimalFunctions::decimalToDouble(position);
+	posUpdate.averageCost = avgCost;
+	posUpdate.marketPrice = 0.0;  // Will be updated by updatePortfolio
+	posUpdate.marketValue = 0.0;
+	posUpdate.unrealizedPNL = 0.0;
+	posUpdate.realizedPNL = 0.0;
+
+	AccountSummaryEvent event;
+	event.positions.push_back(posUpdate);
+	pushEvent(Event{ event });
 }
 //! [position]
 

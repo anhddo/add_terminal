@@ -617,23 +617,110 @@ void Renderer::RenderAnalysisWindows(DataManager& dataManager)
 }
 void Renderer::Portfolio(DataManager& dataManager)
 {
-    // ========== Analysis Tab Windows ==========
-    // These windows are independent from the Trading tab windows
-    // They have their own docking layout within the "AnalysisDockSpace"
+    // ========== Portfolio Tab Windows ==========
+    // Display account information and positions
 
-    // Scanner Results - shows market scanner data
+    // Account Summary Window
+    ImGui::Begin("Account Summary##Portfolio");
+    ImGui::Text("Account Information");
+    ImGui::Separator();
 
-    // Technical Indicators Window
-    ImGui::Begin("Technical Indicators##Analysis");  // ##Analysis for unique ID
-    ImGui::Text("Technical analysis tools");
-    // TODO: RSI, MACD, Bollinger Bands, etc.
+    // Display key account values
+    if (dataManager.accountData.accountValues.find("NetLiquidation") != dataManager.accountData.accountValues.end()) {
+        const auto& netLiq = dataManager.accountData.accountValues["NetLiquidation"];
+        ImGui::Text("Net Liquidation: %s %s", netLiq.value.c_str(), netLiq.currency.c_str());
+    }
+    if (dataManager.accountData.accountValues.find("AvailableFunds") != dataManager.accountData.accountValues.end()) {
+        const auto& availFunds = dataManager.accountData.accountValues["AvailableFunds"];
+        ImGui::Text("Available Funds: %s %s", availFunds.value.c_str(), availFunds.currency.c_str());
+    }
+    if (dataManager.accountData.accountValues.find("BuyingPower") != dataManager.accountData.accountValues.end()) {
+        const auto& buyPower = dataManager.accountData.accountValues["BuyingPower"];
+        ImGui::Text("Buying Power: %s %s", buyPower.value.c_str(), buyPower.currency.c_str());
+    }
+
+    ImGui::Separator();
+
+    // Display all account values in a table
+    if (ImGui::CollapsingHeader("All Account Values")) {
+        if (ImGui::BeginTable("AccountValuesTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+            ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+            ImGui::TableSetupColumn("Currency", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ImGui::TableHeadersRow();
+
+            for (const auto& [key, val] : dataManager.accountData.accountValues) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%s", key.c_str());
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%s", val.value.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%s", val.currency.c_str());
+            }
+            ImGui::EndTable();
+        }
+    }
     ImGui::End();
 
-    
-    // ========== KEY POINT ==========
-    // Even though we're calling ImGui::Begin() just like in RenderTradingWindows(),
-    // these windows will dock into the ANALYSIS tab's dockspace, not the Trading tab!
-    // This is because they're created INSIDE the "Analysis" BeginTabItem() block.
+    // Positions Window
+    ImGui::Begin("Positions##Portfolio");
+    ImGui::Text("Current Positions (%zu)", dataManager.accountData.positions.size());
+    ImGui::Separator();
+
+    if (ImGui::BeginTable("PositionsTable", 7, 
+        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+        // Setup columns
+        ImGui::TableSetupColumn("Symbol", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Avg Cost", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Mkt Price", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableSetupColumn("Mkt Value", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn("Unreal P&L", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn("Real P&L", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableHeadersRow();
+
+        for (const auto& pos : dataManager.accountData.positions) {
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%s", pos.symbol.c_str());
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%.0f", pos.position);
+
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%.2f", pos.averageCost);
+
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%.2f", pos.marketPrice);
+
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%.2f", pos.marketValue);
+
+            ImGui::TableSetColumnIndex(5);
+            // Color code P&L: green for profit, red for loss
+            if (pos.unrealizedPNL >= 0) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+            }
+            ImGui::Text("%.2f", pos.unrealizedPNL);
+            ImGui::PopStyleColor();
+
+            ImGui::TableSetColumnIndex(6);
+            if (pos.realizedPNL >= 0) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+            }
+            ImGui::Text("%.2f", pos.realizedPNL);
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::EndTable();
+    }
+    ImGui::End();
 }
 void Renderer::newGUI(DataManager& dataManager) {
 	// ========== STEP 1: Create a fullscreen "host" window ==========
@@ -709,7 +796,7 @@ void Renderer::newGUI(DataManager& dataManager) {
             // This creates a completely separate docking environment
             ImGuiID dockspace_id = ImGui::GetID("PortfolioDockSpace");  // Different ID!
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
-            RenderAnalysisWindows(dataManager);
+            Portfolio(dataManager);  // Call Portfolio instead of RenderAnalysisWindows
             ImGui::EndTabItem();
         }
 
@@ -745,8 +832,8 @@ int Renderer::draw(DataManager& dataManager)
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	//newGUI(dataManager);
-	ImGui::ShowDemoWindow();
+	newGUI(dataManager);  // Enable the new GUI with Portfolio tab
+	//ImGui::ShowDemoWindow();
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

@@ -1,0 +1,12 @@
+{
+  "ibkr": {
+    "account": "YOUR_ACCOUNT_NUMBER_HERE",
+    "host": "127.0.0.1",
+    "port": 7497,
+    "clientId": 0
+  },
+  "scanner": {
+    "defaultScanCode": "TOP_PERC_GAIN",
+    "priceAbove": 5.0
+  }
+}

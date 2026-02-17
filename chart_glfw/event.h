@@ -2,6 +2,7 @@
 #include <variant>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 struct ScannerResultItem {
 	int rank;
@@ -44,11 +45,39 @@ struct HistoricalDataEvent {
 	std::vector<CandleData> candles;
 };
 
+// Account value update (e.g., NetLiquidation, AvailableFunds, etc.)
+struct AccountValueUpdate {
+	std::string key;        // "NetLiquidation", "TotalCashValue", etc.
+	std::string value;      // The value as string
+	std::string currency;   // "USD", "EUR", etc.
+	std::string accountName;
+};
+
+// Position update (holdings in account)
+struct PositionUpdate {
+	std::string account;
+	std::string symbol;
+	std::string secType;
+	double position;        // Number of shares/contracts
+	double marketPrice;     // Current market price
+	double marketValue;     // position * marketPrice
+	double averageCost;     // Average cost basis
+	double unrealizedPNL;   // Unrealized profit/loss
+	double realizedPNL;     // Realized profit/loss
+};
+
+// Account summary event
+struct AccountSummaryEvent {
+	std::unordered_map<std::string, AccountValueUpdate> accountValues;
+	std::vector<PositionUpdate> positions;
+};
+
 using EventData = std::variant<
 	ScannerResult,
 	TickPrice,
 	OrderStatus,
-	HistoricalDataEvent
+	HistoricalDataEvent,
+	AccountSummaryEvent
 >;
 
 struct Event

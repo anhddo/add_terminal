@@ -28,9 +28,14 @@ struct RequestHistoricalDataCommand {
     int useRTH;                 // 1 = regular trading hours only, 0 = all hours
 };
 
+struct RequestAccountDataCommand {
+    std::string accountCode;    // Account code, or empty for all accounts
+};
+
 using Command = std::variant<
     StartScannerCommand,
     CancelScannerCommand,
     RequestHistoricalDataCommand,
+    RequestAccountDataCommand,
     DiscounnectCommand
 >;

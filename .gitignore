@@ -56,6 +56,12 @@ Thumbs.db
 desktop.ini
 
 # =========================
+# Sensitive configuration files
+# =========================
+config.json
+chart_glfw/config.json
+
+# =========================
 # Editor junk
 # =========================
 .vscode/

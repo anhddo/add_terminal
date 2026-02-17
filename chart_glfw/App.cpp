@@ -17,14 +17,24 @@ App::~App()
 
 void App::init(GLFWwindow* window)
 {
-    m_ibClient = std::make_unique<IbkrClient>();
-    m_ibThread = std::thread([this]() {
-        m_ibClient->processLoop();
-    });
-    
-    
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    startScanner(1, "TOP_PERC_GAIN");
+	// Load configuration from file
+	if (!m_config.load("config.json")) {
+		printf("ERROR: Failed to load configuration. Application cannot start.\n");
+		printf("Please create config.json from config.json.template\n");
+		throw std::runtime_error("Configuration not loaded");
+	}
+
+	m_ibClient = std::make_unique<IbkrClient>();
+	m_ibThread = std::thread([this]() {
+		m_ibClient->processLoop();
+	});
+
+
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+
+	// Use config values instead of hardcoded ones
+	startScanner(1, m_config.scanner.defaultScanCode, m_config.scanner.priceAbove);
+
 	m_renderer = std::make_unique<Renderer>();
 
 	m_renderer->init(window);
@@ -35,25 +45,32 @@ void App::init(GLFWwindow* window)
 	// Wire up symbol input callback
 	m_renderer->onSymbolEntered = [this](const std::string& symbol) {
 		if (dataManager.charts.find(symbol) != dataManager.charts.end()) {
-            dataManager.activeSymbol = symbol;
-            printf("Switched active chart to %s\n", symbol.c_str());
-        } else {
-            printf("No chart data for %s, requesting...\n", symbol.c_str());
-            requestChart(symbol);
-        }
+			dataManager.activeSymbol = symbol;
+			printf("Switched active chart to %s\n", symbol.c_str());
+		} else {
+			printf("No chart data for %s, requesting...\n", symbol.c_str());
+			requestChart(symbol);
+		}
 	};
 
-    m_renderer->onScannerRowClicked = [this](const std::string& symbol) {
-        if (dataManager.charts.find(symbol) != dataManager.charts.end()) {
-            dataManager.activeSymbol = symbol;
-            printf("Switched active chart to %s\n", symbol.c_str());
-        }
-        else {
-            printf("No chart data for %s, requesting...\n", symbol.c_str());
-            requestChart(symbol);
-        }
+	m_renderer->onScannerRowClicked = [this](const std::string& symbol) {
+		if (dataManager.charts.find(symbol) != dataManager.charts.end()) {
+			dataManager.activeSymbol = symbol;
+			printf("Switched active chart to %s\n", symbol.c_str());
+		}
+		else {
+			printf("No chart data for %s, requesting...\n", symbol.c_str());
+			requestChart(symbol);
+		}
 	};
 
+	// Request account data using account from config
+	RequestAccountDataCommand cmd;
+	cmd.accountCode = m_config.ibkr.account;
+	m_ibClient->pushCommand(cmd);
+
+	printf("✓ Account data requested for: %s\n", 
+		   m_config.ibkr.account.substr(m_config.ibkr.account.length() - 4).c_str());
 }
 
 void App::stop()
@@ -109,7 +126,7 @@ void App::handleEvent(const Event& event)
 
             CancelScannerCommand cancelCmd;
             cancelCmd.reqId = arg.reqId;
-            
+
             m_ibClient->pushCommand(std::move(cancelCmd));
         }
         else if constexpr (std::is_same_v<T, HistoricalDataEvent>) {
@@ -124,6 +141,59 @@ void App::handleEvent(const Event& event)
 
             printf("Chart data received for %s: %zu candles\n", 
                    arg.symbol.c_str(), arg.candles.size());
+        }
+        else if constexpr (std::is_same_v<T, AccountSummaryEvent>) {
+            // Update account values (NetLiquidation, BuyingPower, etc.)
+            for (const auto& [key, accountValue] : arg.accountValues) {
+                dataManager.accountData.accountValues[key] = accountValue;
+
+                // Update summary fields for quick access
+                if (key == "NetLiquidation") {
+                    try {
+                        dataManager.accountData.totalValue = std::stod(accountValue.value);
+                    } catch (...) {
+                        dataManager.accountData.totalValue = 0.0;
+                    }
+                }
+                else if (key == "AvailableFunds") {
+                    try {
+                        dataManager.accountData.availableFunds = std::stod(accountValue.value);
+                    } catch (...) {
+                        dataManager.accountData.availableFunds = 0.0;
+                    }
+                }
+                else if (key == "BuyingPower") {
+                    try {
+                        dataManager.accountData.buyingPower = std::stod(accountValue.value);
+                    } catch (...) {
+                        dataManager.accountData.buyingPower = 0.0;
+                    }
+                }
+            }
+
+            // Update positions (merge with existing or add new)
+            for (const auto& newPos : arg.positions) {
+                bool found = false;
+
+                // Look for existing position with same symbol and account
+                for (auto& existingPos : dataManager.accountData.positions) {
+                    if (existingPos.symbol == newPos.symbol && 
+                        existingPos.account == newPos.account) {
+                        // Update existing position
+                        existingPos = newPos;
+                        found = true;
+                        break;
+                    }
+                }
+
+                // If not found, add as new position
+                if (!found) {
+                    dataManager.accountData.positions.push_back(newPos);
+                }
+            }
+
+            printf("Account data updated: %zu account values, %zu positions\n",
+                   arg.accountValues.size(), arg.positions.size());
         }
     }, event.data);
 }
