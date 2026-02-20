@@ -44,8 +44,11 @@ const int SLEEP_BETWEEN_PINGS = 30; // seconds
 ///////////////////////////////////////////////////////////
 // member funcs
 //! [socket_init]
-IbkrClient::IbkrClient() :
-	m_osSignal(2000)//2-seconds timeout
+IbkrClient::IbkrClient(const std::string& host, int port, int clientId) :
+	m_host(host)
+	, m_port(port)
+	, m_clientId(clientId)
+	, m_osSignal(2000)//2-seconds timeout
 	, m_pClient(new EClientSocket(this, &m_osSignal))
 	, m_state(ST_CONNECT)
 	, m_sleepDeadline(0)
@@ -289,14 +292,14 @@ void IbkrClient::processLoop() {
 	printf("Start of C++ Socket Client Test %u\n", attempt);
 
 
-	bool bRes = m_pClient->eConnect("", 7495, 0, m_extraAuth);
+	bool bRes = m_pClient->eConnect(m_host.c_str(), m_port, m_clientId, m_extraAuth);
 	if (bRes) {
-		printf("Connected to %s:%d clientId:%d serverVersion: %d\n", m_pClient->host().c_str(), m_pClient->port(), 0, m_pClient->EClient::serverVersion());
+		printf("Connected to %s:%d clientId:%d serverVersion: %d\n", m_pClient->host().c_str(), m_pClient->port(), m_clientId, m_pClient->EClient::serverVersion());
 		m_pReader = std::unique_ptr<EReader>(new EReader(m_pClient, &m_osSignal));
 		m_pReader->start();
 	}
 	else
-		printf("Cannot connect to %s:%d clientId:%d\n", m_pClient->host().c_str(), m_pClient->port(), 0);
+		printf("Cannot connect to %s:%d clientId:%d\n", m_pClient->host().c_str(), m_pClient->port(), m_clientId);
 
 
 	

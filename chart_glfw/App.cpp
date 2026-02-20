@@ -24,7 +24,12 @@ void App::init(GLFWwindow* window)
 		throw std::runtime_error("Configuration not loaded");
 	}
 
-	m_ibClient = std::make_unique<IbkrClient>();
+	// Create IbkrClient with config values (host, port, clientId)
+	m_ibClient = std::make_unique<IbkrClient>(
+		m_config.ibkr.host,
+		m_config.ibkr.port,
+		m_config.ibkr.clientId
+	);
 	m_ibThread = std::thread([this]() {
 		m_ibClient->processLoop();
 	});

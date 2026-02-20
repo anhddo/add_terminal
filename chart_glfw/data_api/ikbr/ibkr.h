@@ -120,7 +120,7 @@ class IbkrClient : public EWrapper
 	//! [ewrapperimpl]
 public:
 
-	IbkrClient();
+	IbkrClient(const std::string& host = "127.0.0.1", int port = 7497, int clientId = 0);
 	~IbkrClient();
 
 	void setConnectOptions(const std::string&);
@@ -148,6 +148,9 @@ public:
 	std::queue<Event> consumeEvents();
 
 private:
+	std::string m_host;
+	int m_port;
+	int m_clientId;
 	std::mutex m_commandMutex;
 	std::mutex m_eventMutex;
 	std::queue<Command> m_commandQueue;
