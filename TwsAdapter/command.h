@@ -14,7 +14,7 @@ struct CancelScannerCommand {
     int reqId;
 };
 
-struct DiscounnectCommand {
+struct DisconnectCommand {
     // No parameters needed for now
 };
 
@@ -37,5 +37,5 @@ using Command = std::variant<
     CancelScannerCommand,
     RequestHistoricalDataCommand,
     RequestAccountDataCommand,
-    DiscounnectCommand
+    DisconnectCommand
 >;

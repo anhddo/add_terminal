@@ -80,7 +80,7 @@ void App::init(GLFWwindow* window)
 
 void App::stop()
 {
-    DiscounnectCommand disconnectCmd;
+    DisconnectCommand disconnectCmd;
 
     m_ibClient->pushCommand(disconnectCmd);
     // 3. Wait for thread to finish

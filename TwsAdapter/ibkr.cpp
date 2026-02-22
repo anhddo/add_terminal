@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cerrno>
 #include <queue>
+#include <variant>
 
 ///////////////////////////////////////////////////////////
 // member funcs
@@ -180,7 +181,7 @@ void IbkrClient::processCommands() {
 					arg.durationStr, arg.barSizeSetting, arg.whatToShow,
 					arg.useRTH, 1, false, TagValueListSPtr());
 			}
-			else if constexpr (std::is_same_v<T, DiscounnectCommand>) {
+			else if constexpr (std::is_same_v<T, DisconnectCommand>) {
 				printf("Processing DisconnectCommand\n");
 				m_pClient->eDisconnect();
 			}

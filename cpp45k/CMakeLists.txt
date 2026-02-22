@@ -1,34 +1,82 @@
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-file(GLOB_RECURSE SOURCES "*.cpp")
+find_package(glm CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
-add_executable(chart_glfw 
+add_executable(cpp45k
     main.cpp
-    ${SOURCES}
+    App.cpp
+    App.h
+    Config.h
+    DataManager.h
+    renderer.cpp
+    renderer.h
+    data_api/polygon_io.cpp
+    data_api/polygon_io.h
 )
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.json ${CMAKE_CURRENT_BINARY_DIR}/config.json COPYONLY)
+target_include_directories(cpp45k
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/data_api
+)
 
-file(GLOB_RECURSE IMGUI_SOURCES "../third_party/imgui/*.cpp")
-file(GLOB_RECURSE IMGUI_HEADERS "../third_party/imgui/*.h")
-add_library(imgui STATIC ${IMGUI_SOURCES} ${IMGUI_HEADERS})
+target_link_libraries(cpp45k
+    PRIVATE twsadapter
+    PRIVATE glad
+    PRIVATE glfw
+    PRIVATE glm::glm
+    PRIVATE nlohmann_json::nlohmann_json
+    PRIVATE imgui::imgui
+    PRIVATE opengl32
+)
 
-target_include_directories(imgui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/imgui)
-target_include_directories(imgui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/glfw)
-target_compile_definitions(imgui PUBLIC GLFW_INCLUDE_NONE)
-
-target_link_libraries(imgui PUBLIC glad)
-
-target_include_directories(chart_glfw PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(chart_glfw PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/glfw)
-find_package(glm CONFIG REQUIRED)
-
-target_link_libraries(chart_glfw PRIVATE imgui glfw glm::glm twsadapter glad)
-
-add_custom_command(TARGET chart_glfw POST_BUILD
+# Copy required DLLs to output directory
+add_custom_command(TARGET cpp45k POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:twsadapter>
-        $<TARGET_FILE_DIR:chart_glfw>
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "$<IF:$<CONFIG:Debug>,${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/bin,${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin>"
-        $<TARGET_FILE_DIR:chart_glfw>
+        $<TARGET_FILE_DIR:cpp45k>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:twsapi>
+        $<TARGET_FILE_DIR:cpp45k>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:protobuf::libprotobuf>
+        $<TARGET_FILE_DIR:cpp45k>
+    COMMENT "Copying DLL dependencies to output directory"
+)
+
+# Copy config files to output directory
+add_custom_command(TARGET cpp45k POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/config.json.template
+        $<TARGET_FILE_DIR:cpp45k>/config.json.template
+    COMMENT "Copying config template"
+)
+
+# Copy config.json if it exists, otherwise copy from template
+add_custom_command(TARGET cpp45k POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/config.json
+        $<TARGET_FILE_DIR:cpp45k>/config.json
+    COMMAND ${CMAKE_COMMAND} -E echo "Copied config.json"
+    COMMENT "Copying config.json if it exists"
+)
+
+# If config.json doesn't exist in source, copy template as config.json
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config.json")
+    add_custom_command(TARGET cpp45k POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/config.json.template
+            $<TARGET_FILE_DIR:cpp45k>/config.json
+        COMMENT "Creating config.json from template"
+    )
+endif()
+
+# Copy be_data.json if it exists
+add_custom_command(TARGET cpp45k POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/be_data.json
+        $<TARGET_FILE_DIR:cpp45k>/be_data.json
+    COMMAND_EXPAND_LISTS
 )

@@ -920,7 +920,7 @@ void Renderer::CreateChartView(ChartView& chart)
         renderChartToFBO(chart, chart.shaderProgram, chart.vao, chart.numCandles);
 
         // Show FBO texture inside ImGui
-        ImGui::Image((void*)(intptr_t)chart.colorTex, avail, ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image((ImTextureID)(intptr_t)chart.colorTex, avail, ImVec2(0, 1), ImVec2(1, 0));
     }
 
     ImGui::End();
