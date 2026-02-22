@@ -19,7 +19,7 @@ target_link_libraries(twsapi PUBLIC protobuf::libprotobuf ibkr_proto)
 
 add_library(libbid STATIC IMPORTED)
 set_target_properties(libbid PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/third_party/ibkr_api/client/lib/libbid.lib"
+    IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/third_party/tws_api/source/CppClient//client/lib/libbid.lib"
 )
 target_link_libraries(twsapi PUBLIC libbid)
 
