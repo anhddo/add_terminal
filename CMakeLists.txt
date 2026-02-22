@@ -23,4 +23,19 @@ set_target_properties(libbid PROPERTIES
 )
 target_link_libraries(twsapi PUBLIC libbid)
 
+add_library(glad STATIC third_party/glad/src/glad.c)
+target_include_directories(glad PUBLIC third_party/glad/include)
+
+add_library(glfw STATIC IMPORTED GLOBAL)
+set_target_properties(glfw PROPERTIES
+    IMPORTED_LOCATION_DEBUG   "${CMAKE_SOURCE_DIR}/third_party/glfw/lib/Debug/glfw3.lib"
+    IMPORTED_LOCATION_RELEASE "${CMAKE_SOURCE_DIR}/third_party/glfw/lib/Release/glfw3.lib"
+    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/third_party/glfw"
+)
+
+set(IMGUI_STATIC "yes" CACHE STRING "Build cimgui as a static library" FORCE)
+add_subdirectory(third_party/cimgui)
+
+add_subdirectory(TwsAdapter)
 add_subdirectory(chart_glfw)
+add_subdirectory(c45k)

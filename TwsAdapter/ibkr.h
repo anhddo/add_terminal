@@ -14,8 +14,8 @@
 #include <mutex>
 #include <queue>
 #include <unordered_map>
-#include "../../command.h"
-#include "../../event.h"
+#include "command.h"
+#include "event.h"
 
 class EClientSocket;
 
