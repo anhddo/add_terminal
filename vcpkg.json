@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "builtin-baseline": "245eb91b466a1f2e1eb73e2b04a6ba77c14c35af",
   "dependencies": [
-    "nlohmann-json",
-    "cpr",
-    "glm",
-    "protobuf"
+    { "name": "nlohmann-json", "version>=": "3.12.0#1" },
+    { "name": "cpr", "version>=": "1.14.1" },
+    { "name": "glm", "version>=": "1.0.2" },
+    { "name": "cjson"},
+    { "name": "protobuf", "version>=": "5.29.5#3" }
   ]
 }

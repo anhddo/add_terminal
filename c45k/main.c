@@ -7,6 +7,7 @@
 #include <cimgui.h>
 #include <cimgui_impl.h>
 #include "ibkr_c_api.h"
+#include <cjson/cJSON.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -102,6 +103,7 @@ int main(void) {
 	ImGuiContext* ctx = igCreateContext(NULL);
 	ImGuiIO* io = igGetIO_Nil();
 	io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	igStyleColorsDark(igGetStyle());
 
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init("#version 330");
