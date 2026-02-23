@@ -37,14 +37,13 @@ struct ChartView {
 	GLuint fbo = 0;
 	GLuint shaderProgram = 0;
 	GLuint vao = 0;
-    GLuint vbo = 0;        
-    GLuint rbo = 0;        
+	GLuint vbo = 0;        
+	GLuint rbo = 0;        
 	GLuint numCandles;
 	GLuint colorTex = 0;
 	int width = 0;
 	int height = 0;
-	//std::string title;
-	const char* title;
+	std::string title;
 
 	// Per-chart price range (not global!)
 	float minPrice = 1e9f;

@@ -879,7 +879,7 @@ ChartView Renderer::createChartFromData(const std::string& symbol, const std::ve
            symbol.c_str(), candles.size());
 
     ChartView newChart;
-    newChart.title = symbol.c_str();
+    newChart.title = symbol;
     newChart.isVisible = true;
 
     // Prepare vertex data from candles and get price range
@@ -902,7 +902,7 @@ ChartView Renderer::createChartFromData(const std::string& symbol, const std::ve
 
 void Renderer::CreateChartView(ChartView& chart)
 {
-    ImGui::Begin(chart.title, &chart.isVisible);
+    ImGui::Begin(chart.title.c_str(), &chart.isVisible);
     DisableTitleFocusColors();
     ImVec2 avail = ImGui::GetContentRegionAvail();
     
